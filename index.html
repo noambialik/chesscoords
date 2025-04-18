@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Knight Trainer</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 30px;
+      margin-top: 30px;
+      font-family: sans-serif;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      min-width: 160px;
+    }
+    .perspective-label {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      min-height: 24px;
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+      margin: 5px 0;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: 0.4s;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: 0.4s;
+      border-radius: 50%;
+    }
+    .toggle-switch input:checked + .slider {
+      background-color: #2196F3;
+    }
+    .toggle-switch input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+    label[for="delayInput"] {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    #delayInput {
+      width: 60px;
+      margin: 5px 0;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 60px);
+      grid-template-rows: repeat(8, 60px);
+      border: 2px solid black;
+      transform-origin: center;
+    }
+    .cell {
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      position: relative;
+    }
+    .cell .coord {
+      position: absolute;
+      font-size: 12px;
+      font-weight: bold;
+      opacity: 0.8;
+    }
+    .highlight {
+      box-shadow: inset 0 0 0 4px rgba(255, 255, 0, 0.7);
+    }
+    .bottom-right {
+      bottom: 2px;
+      right: 4px;
+    }
+    .top-left {
+      top: 2px;
+      left: 4px;
+    }
+    .white { background-color: #f5deb3; }
+    .black { background-color: #8b4513; color: white; }
+    .knight {
+      font-weight: bold;
+      font-size: 36px;
+      line-height: 1;
+    }
+    .knight.white-piece {
+      color: white;
+    }
+    .knight.black-piece {
+      color: black;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 5px 0;
+    }
+    #spokenLabel {
+      font-size: 24px;
+      font-weight: bold;
+      margin-top: 10px;
+      text-align: center;
+      visibility: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <div class="perspective-label" id="perspectiveLabel">White Perspective</div>
+    <button id="startBtn">Start Training</button>
+    <button id="stopBtn">Stop Training</button>
+    <label class="toggle-switch">
+      <input type="checkbox" id="togglePerspectiveBtn">
+      <span class="slider"></span>
+    </label>
+    <label for="delayInput">Delay (s):</label>
+    <input id="delayInput" type="number" min="0.1" step="0.1" value="2" />
+  </div>
+  <div>
+    <div class="board" id="board"></div>
+    <div id="spokenLabel"></div>
+  </div>
+
+  <script defer>
+    const boardEl = document.getElementById("board");
+    const labelEl = document.getElementById("perspectiveLabel");
+    const toggleBtn = document.getElementById("togglePerspectiveBtn");
+    const delayInput = document.getElementById("delayInput");
+    const spokenLabel = document.getElementById("spokenLabel");
+    const knightSymbol = "♞";
+    const cols = "abcdefgh";
+    let knightPos = [0, 1];
+    let trainingActive = false;
+    let isWhitePerspective = true;
+
+    const moves = [
+      [2, 1], [1, 2], [-1, 2], [-2, 1],
+      [-2, -1], [-1, -2], [1, -2], [2, -1]
+    ];
+
+    const speak = (text) => {
+      const utter = new SpeechSynthesisUtterance(text);
+      speechSynthesis.speak(utter);
+    };
+
+    const coordToName = ([row, col]) => {
+      const spokenLetters = {
+        a: "A", b: "B", c: "C", d: "D",
+        e: "E", f: "F", g: "G", h: "H"
+      };
+      return `Knight to ${spokenLetters[cols[col]]} ${8 - row}`;
+    };
+
+    const isInside = ([r, c]) => r >= 0 && r < 8 && c >= 0 && c < 8;
+
+    function createBoard() {
+      boardEl.innerHTML = "";
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const trueRow = isWhitePerspective ? row : 7 - row;
+          const trueCol = isWhitePerspective ? col : 7 - col;
+          const cell = document.createElement("div");
+          cell.className = `cell ${(row + col) % 2 ? "black" : "white"}`;
+          cell.id = `cell-${trueRow}-${trueCol}`;
+          if (row === 7) {
+            const label = document.createElement("div");
+            label.className = "coord bottom-right";
+            label.textContent = isWhitePerspective ? cols[col] : cols[7 - col];
+            cell.appendChild(label);
+          }
+          if (col === 0) {
+            const label = document.createElement("div");
+            label.className = "coord top-left";
+            label.textContent = isWhitePerspective ? 8 - row : row + 1;
+            cell.appendChild(label);
+          }
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    function updateKnight([row, col]) {
+      document.querySelectorAll(".cell").forEach(cell => {
+        if (cell.classList.contains("knight")) {
+          cell.classList.remove("knight", "white-piece", "black-piece", "highlight");
+          const knightNode = [...cell.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.nodeValue.trim() === knightSymbol);
+          if (knightNode) cell.removeChild(knightNode);
+        } else {
+          cell.classList.remove("highlight");
+        }
+      });
+      const cell = document.getElementById(`cell-${row}-${col}`);
+      cell.classList.add("knight", isWhitePerspective ? "white-piece" : "black-piece");
+      cell.appendChild(document.createTextNode(knightSymbol));
+    }
+
+    function clearBoardText() {
+      document.querySelectorAll(".cell").forEach(cell => {
+        if (!cell.classList.contains("knight")) {
+          const labels = cell.querySelectorAll(".coord");
+          cell.textContent = "";
+          labels.forEach(label => cell.appendChild(label));
+        }
+      });
+    }
+
+    function getLegalMoves([r, c]) {
+      return moves.map(([dr, dc]) => [r + dr, c + dc]).filter(isInside);
+    }
+
+    async function moveKnightRandomly() {
+      trainingActive = true;
+      while (trainingActive) {
+        const legal = getLegalMoves(knightPos);
+        const next = legal[Math.floor(Math.random() * legal.length)];
+        const highlightCell = document.getElementById(`cell-${next[0]}-${next[1]}`);
+        highlightCell.classList.add("highlight");
+        const delay = Math.max(100, parseFloat(delayInput.value || 2) * 1000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        highlightCell.classList.remove("highlight");
+        knightPos = next;
+        updateKnight(knightPos);
+        clearBoardText();
+        const spokenText = coordToName(knightPos);
+        spokenLabel.textContent = spokenText;
+        spokenLabel.style.visibility = "visible";
+        speak(spokenText);
+        setTimeout(() => (spokenLabel.style.visibility = "hidden"), delay);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    document.getElementById("startBtn").addEventListener("click", () => {
+      if (trainingActive) return;
+      createBoard();
+      updateKnight(knightPos);
+      speak(coordToName(knightPos));
+      moveKnightRandomly();
+    });
+
+    document.getElementById("stopBtn").addEventListener("click", () => {
+      trainingActive = false;
+    });
+
+    toggleBtn.addEventListener("change", () => {
+      isWhitePerspective = !isWhitePerspective;
+      labelEl.textContent = isWhitePerspective ? "White Perspective" : "Black Perspective";
+      createBoard();
+      updateKnight(knightPos);
+    });
+
+    createBoard();
+    updateKnight(knightPos);
+  </script>
+</body>
+</html>
