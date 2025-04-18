@@ -132,6 +132,38 @@
       text-align: center;
       visibility: hidden;
     }
+      @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+      .controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+      }
+      .controls > * {
+        margin: 4px;
+      }
+      .board {
+        grid-template-columns: repeat(8, 40px);
+        grid-template-rows: repeat(8, 40px);
+      }
+      .cell {
+        width: 40px;
+        height: 40px;
+        font-size: 14px;
+      }
+      .knight {
+        font-size: 28px;
+      }
+      #spokenLabel {
+        font-size: 18px;
+      }
+    }
   </style>
 </head>
 <body>
