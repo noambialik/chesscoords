@@ -74,6 +74,7 @@
       margin: 5px 0;
     }
     .board {
+  max-width: 100vw;
       display: grid;
       grid-template-columns: repeat(8, 60px);
       grid-template-rows: repeat(8, 60px);
@@ -126,6 +127,8 @@
       margin: 5px 0;
     }
     #spokenLabel {
+  max-width: 100vw;
+  padding: 0 10px;
       font-size: 24px;
       font-weight: bold;
       margin-top: 10px;
@@ -133,6 +136,12 @@
       visibility: hidden;
     }
       @media (max-width: 768px) {
+  html, body {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
       body {
         flex-direction: column;
         align-items: center;
