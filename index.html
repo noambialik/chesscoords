@@ -5,32 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Knight Trainer</title>
   <style>
-    body {
+    html, body {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      width: 100vw;
+      height: 100vh;
       display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      gap: 30px;
-      margin-top: 30px;
+      flex-direction: column;
+      align-items: center;
+      background-color: #fffaf0;
       font-family: sans-serif;
     }
     .controls {
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      min-width: 160px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin: 10px;
     }
     .perspective-label {
       font-size: 20px;
       font-weight: bold;
-      margin-bottom: 10px;
       min-height: 24px;
+      width: 100%;
+      text-align: center;
     }
     .toggle-switch {
       position: relative;
       display: inline-block;
       width: 60px;
       height: 34px;
-      margin: 5px 0;
     }
     .toggle-switch input {
       opacity: 0;
@@ -66,29 +72,29 @@
       transform: translateX(26px);
     }
     label[for="delayInput"] {
-      margin-top: 10px;
       font-size: 14px;
     }
     #delayInput {
       width: 60px;
-      margin: 5px 0;
     }
     .board {
-  max-width: 100vw;
       display: grid;
-      grid-template-columns: repeat(8, 60px);
-      grid-template-rows: repeat(8, 60px);
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      width: min(90vmin, 100vw);
+      height: min(90vmin, 100vw);
+      max-width: 100vw;
+      max-height: 100vw;
+      aspect-ratio: 1 / 1;
       border: 2px solid black;
       transform-origin: center;
     }
     .cell {
-      width: 60px;
-      height: 60px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 16px;
       position: relative;
+      font-size: min(4vw, 16px);
     }
     .cell .coord {
       position: absolute;
@@ -111,7 +117,7 @@
     .black { background-color: #8b4513; color: white; }
     .knight {
       font-weight: bold;
-      font-size: 36px;
+      font-size: min(10vw, 60px);
       line-height: 1;
     }
     .knight.white-piece {
@@ -124,61 +130,21 @@
       padding: 10px 20px;
       font-size: 16px;
       cursor: pointer;
-      margin: 5px 0;
     }
     #spokenLabel {
-  max-width: 100vw;
-  padding: 0 10px;
-      font-size: 24px;
+      max-width: 100vw;
+      padding: 0 10px;
+      font-size: 18px;
       font-weight: bold;
       margin-top: 10px;
       text-align: center;
       visibility: hidden;
     }
-      @media (max-width: 768px) {
-  html, body {
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-      body {
-        flex-direction: column;
-        align-items: center;
-        gap: 20px;
-      }
-      .controls {
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: center;
-        align-items: center;
-        gap: 10px;
-      }
-      .controls > * {
-        margin: 4px;
-      }
-      .board {
-        grid-template-columns: repeat(8, 40px);
-        grid-template-rows: repeat(8, 40px);
-      }
-      .cell {
-        width: 40px;
-        height: 40px;
-        font-size: 14px;
-      }
-      .knight {
-        font-size: 28px;
-      }
-      #spokenLabel {
-        font-size: 18px;
-      }
-    }
   </style>
 </head>
 <body>
   <div class="controls">
-  <div class="perspective-label" id="perspectiveLabel">White Perspective</div>
-  <br />
+    <div class="perspective-label" id="perspectiveLabel">White Perspective</div>
     <button id="startBtn">Start Training</button>
     <button id="stopBtn">Stop Training</button>
     <label class="toggle-switch">
@@ -188,141 +154,140 @@
     <label for="delayInput">Delay (s):</label>
     <input id="delayInput" type="number" min="0.1" step="0.1" value="2" />
   </div>
-  <div>
-    <div class="board" id="board"></div>
-    <div id="spokenLabel"></div>
-  </div>
+  <div class="board" id="board"></div>
+  <div id="spokenLabel"></div>
+<script>
+  const boardEl = document.getElementById("board");
+  const labelEl = document.getElementById("perspectiveLabel");
+  const toggleBtn = document.getElementById("togglePerspectiveBtn");
+  const delayInput = document.getElementById("delayInput");
+  const spokenLabel = document.getElementById("spokenLabel");
+  const knightSymbol = "♞";
+  const cols = "abcdefgh";
+  let knightPos = [0, 1];
+  let trainingActive = false;
+  let isWhitePerspective = true;
 
-  <script defer>
-    const boardEl = document.getElementById("board");
-    const labelEl = document.getElementById("perspectiveLabel");
-    const toggleBtn = document.getElementById("togglePerspectiveBtn");
-    const delayInput = document.getElementById("delayInput");
-    const spokenLabel = document.getElementById("spokenLabel");
-    const knightSymbol = "♞";
-    const cols = "abcdefgh";
-    let knightPos = [0, 1];
-    let trainingActive = false;
-    let isWhitePerspective = true;
+  const moves = [
+    [2, 1], [1, 2], [-1, 2], [-2, 1],
+    [-2, -1], [-1, -2], [1, -2], [2, -1]
+  ];
 
-    const moves = [
-      [2, 1], [1, 2], [-1, 2], [-2, 1],
-      [-2, -1], [-1, -2], [1, -2], [2, -1]
-    ];
+  const speak = (text) => {
+    const utter = new SpeechSynthesisUtterance(text);
+    speechSynthesis.speak(utter);
+  };
 
-    const speak = (text) => {
-      const utter = new SpeechSynthesisUtterance(text);
-      speechSynthesis.speak(utter);
+  const coordToName = ([row, col]) => {
+    const spokenLetters = {
+      a: "A", b: "B", c: "C", d: "D",
+      e: "E", f: "F", g: "G", h: "H"
     };
+    return `Knight to ${spokenLetters[cols[col]]} ${8 - row}`;
+  };
 
-    const coordToName = ([row, col]) => {
-      const spokenLetters = {
-        a: "A", b: "B", c: "C", d: "D",
-        e: "E", f: "F", g: "G", h: "H"
-      };
-      return `Knight to ${spokenLetters[cols[col]]} ${8 - row}`;
-    };
+  const isInside = ([r, c]) => r >= 0 && r < 8 && c >= 0 && c < 8;
 
-    const isInside = ([r, c]) => r >= 0 && r < 8 && c >= 0 && c < 8;
+  function createBoard() {
+    boardEl.innerHTML = "";
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const trueRow = isWhitePerspective ? row : 7 - row;
+        const trueCol = isWhitePerspective ? col : 7 - col;
+        const cell = document.createElement("div");
+        cell.className = `cell ${(row + col) % 2 ? "black" : "white"}`;
+        cell.id = `cell-${trueRow}-${trueCol}`;
 
-    function createBoard() {
-      boardEl.innerHTML = "";
-      for (let row = 0; row < 8; row++) {
-        for (let col = 0; col < 8; col++) {
-          const trueRow = isWhitePerspective ? row : 7 - row;
-          const trueCol = isWhitePerspective ? col : 7 - col;
-          const cell = document.createElement("div");
-          cell.className = `cell ${(row + col) % 2 ? "black" : "white"}`;
-          cell.id = `cell-${trueRow}-${trueCol}`;
-          if (row === 7) {
-            const label = document.createElement("div");
-            label.className = "coord bottom-right";
-            label.textContent = isWhitePerspective ? cols[col] : cols[7 - col];
-            cell.appendChild(label);
-          }
-          if (col === 0) {
-            const label = document.createElement("div");
-            label.className = "coord top-left";
-            label.textContent = isWhitePerspective ? 8 - row : row + 1;
-            cell.appendChild(label);
-          }
-          boardEl.appendChild(cell);
+        if (row === 7) {
+          const label = document.createElement("div");
+          label.className = "coord bottom-right";
+          label.textContent = isWhitePerspective ? cols[col] : cols[7 - col];
+          cell.appendChild(label);
         }
+        if (col === 0) {
+          const label = document.createElement("div");
+          label.className = "coord top-left";
+          label.textContent = isWhitePerspective ? 8 - row : row + 1;
+          cell.appendChild(label);
+        }
+
+        boardEl.appendChild(cell);
       }
     }
+  }
 
-    function updateKnight([row, col]) {
-      document.querySelectorAll(".cell").forEach(cell => {
-        if (cell.classList.contains("knight")) {
-          cell.classList.remove("knight", "white-piece", "black-piece", "highlight");
-          const knightNode = [...cell.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.nodeValue.trim() === knightSymbol);
-          if (knightNode) cell.removeChild(knightNode);
-        } else {
-          cell.classList.remove("highlight");
-        }
-      });
-      const cell = document.getElementById(`cell-${row}-${col}`);
-      cell.classList.add("knight", isWhitePerspective ? "white-piece" : "black-piece");
-      cell.appendChild(document.createTextNode(knightSymbol));
-    }
-
-    function clearBoardText() {
-      document.querySelectorAll(".cell").forEach(cell => {
-        if (!cell.classList.contains("knight")) {
-          const labels = cell.querySelectorAll(".coord");
-          cell.textContent = "";
-          labels.forEach(label => cell.appendChild(label));
-        }
-      });
-    }
-
-    function getLegalMoves([r, c]) {
-      return moves.map(([dr, dc]) => [r + dr, c + dc]).filter(isInside);
-    }
-
-    async function moveKnightRandomly() {
-      trainingActive = true;
-      while (trainingActive) {
-        const legal = getLegalMoves(knightPos);
-        const next = legal[Math.floor(Math.random() * legal.length)];
-        const highlightCell = document.getElementById(`cell-${next[0]}-${next[1]}`);
-        highlightCell.classList.add("highlight");
-        const delay = Math.max(100, parseFloat(delayInput.value || 2) * 1000);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        highlightCell.classList.remove("highlight");
-        knightPos = next;
-        updateKnight(knightPos);
-        clearBoardText();
-        const spokenText = coordToName(knightPos);
-        spokenLabel.textContent = spokenText;
-        spokenLabel.style.visibility = "visible";
-        speak(spokenText);
-        setTimeout(() => (spokenLabel.style.visibility = "hidden"), delay);
-        await new Promise(resolve => setTimeout(resolve, delay));
+  function updateKnight([row, col]) {
+    document.querySelectorAll(".cell").forEach(cell => {
+      if (cell.classList.contains("knight")) {
+        cell.classList.remove("knight", "white-piece", "black-piece", "highlight");
+        const knightNode = [...cell.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.nodeValue.trim() === knightSymbol);
+        if (knightNode) cell.removeChild(knightNode);
+      } else {
+        cell.classList.remove("highlight");
       }
+    });
+    const cell = document.getElementById(`cell-${row}-${col}`);
+    cell.classList.add("knight", isWhitePerspective ? "white-piece" : "black-piece");
+    cell.appendChild(document.createTextNode(knightSymbol));
+  }
+
+  function clearBoardText() {
+    document.querySelectorAll(".cell").forEach(cell => {
+      if (!cell.classList.contains("knight")) {
+        const labels = cell.querySelectorAll(".coord");
+        cell.textContent = "";
+        labels.forEach(label => cell.appendChild(label));
+      }
+    });
+  }
+
+  function getLegalMoves([r, c]) {
+    return moves.map(([dr, dc]) => [r + dr, c + dc]).filter(isInside);
+  }
+
+  async function moveKnightRandomly() {
+    trainingActive = true;
+    while (trainingActive) {
+      const legal = getLegalMoves(knightPos);
+      const next = legal[Math.floor(Math.random() * legal.length)];
+      const highlightCell = document.getElementById(`cell-${next[0]}-${next[1]}`);
+      highlightCell.classList.add("highlight");
+      const delay = Math.max(100, parseFloat(delayInput.value || 2) * 1000);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      highlightCell.classList.remove("highlight");
+      knightPos = next;
+      updateKnight(knightPos);
+      clearBoardText();
+      const spokenText = coordToName(knightPos);
+      spokenLabel.textContent = spokenText;
+      spokenLabel.style.visibility = "visible";
+      speak(spokenText);
+      setTimeout(() => (spokenLabel.style.visibility = "hidden"), delay);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
+  }
 
-    document.getElementById("startBtn").addEventListener("click", () => {
-      if (trainingActive) return;
-      createBoard();
-      updateKnight(knightPos);
-      speak(coordToName(knightPos));
-      moveKnightRandomly();
-    });
-
-    document.getElementById("stopBtn").addEventListener("click", () => {
-      trainingActive = false;
-    });
-
-    toggleBtn.addEventListener("change", () => {
-      isWhitePerspective = !isWhitePerspective;
-      labelEl.textContent = isWhitePerspective ? "White Perspective" : "Black Perspective";
-      createBoard();
-      updateKnight(knightPos);
-    });
-
+  document.getElementById("startBtn").addEventListener("click", () => {
+    if (trainingActive) return;
     createBoard();
     updateKnight(knightPos);
-  </script>
+    speak(coordToName(knightPos));
+    moveKnightRandomly();
+  });
+
+  document.getElementById("stopBtn").addEventListener("click", () => {
+    trainingActive = false;
+  });
+
+  toggleBtn.addEventListener("change", () => {
+    isWhitePerspective = !isWhitePerspective;
+    labelEl.textContent = isWhitePerspective ? "White Perspective" : "Black Perspective";
+    createBoard();
+    updateKnight(knightPos);
+  });
+
+  createBoard();
+  updateKnight(knightPos);
+</script>
 </body>
 </html>
